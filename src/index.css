@@ -1,0 +1,121 @@
+@import "tailwindcss";
+@import "@fontsource-variable/archivo";
+@import "@fontsource/public-sans/400.css";
+@import "@fontsource/public-sans/600.css";
+@import "@fontsource/public-sans/700.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+@import "@fontsource/hind/400.css";
+@import "@fontsource/hind/600.css";
+@import "@fontsource/hind/700.css";
+
+@theme {
+  --color-*: initial;
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-brick: var(--brick);
+  --color-sandstone: var(--sandstone);
+  --color-signal: var(--signal);
+  --color-moss: var(--moss);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --font-display: "Archivo Variable", "Public Sans", sans-serif;
+  --font-sans: "Public Sans", "Hind", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+}
+
+:root {
+  --paper: #F3ECDF;
+  --ink: #1A1613;
+  --brick: #9E3B2B;
+  --sandstone: #D9C7A6;
+  --signal: #FFC400;
+  --moss: #2F5D50;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #14110F;
+    --ink: #EDE5D6;
+    --brick: #C8553F;
+    --sandstone: #3A3128;
+    --signal: #FFC400;
+    --moss: #5FA58F;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #14110F;
+  --ink: #EDE5D6;
+  --brick: #C8553F;
+  --sandstone: #3A3128;
+  --signal: #FFC400;
+  --moss: #5FA58F;
+  color-scheme: dark;
+}
+
+:root[data-contrast="high"] {
+  --sandstone: var(--paper);
+}
+
+html, body, #root {
+  height: 100%;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.paper-grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0.03;
+  background-image: url("/paper-grain.svg");
+  background-repeat: repeat;
+}
+
+.font-block-numeral {
+  font-family: "Archivo Variable", sans-serif;
+  font-variation-settings: "wdth" 125, "wght" 900;
+}
+
+.hero-brick-34 {
+  background-image: url("/brick-facade.svg");
+  background-size: 130% 130%;
+  background-position: var(--parallax-x, 50%) var(--parallax-y, 50%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: 2px var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+  }
+}
+
+@keyframes pulse-you {
+  0%, 100% { transform: scale(1); opacity: 0.95; }
+  50% { transform: scale(1.45); opacity: 0.35; }
+}
+
+.you-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulse-you 1.66s cubic-bezier(.2,.8,.2,1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .you-pulse {
+    animation: none;
+  }
+}
