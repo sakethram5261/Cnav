@@ -2,13 +2,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Compass,
   MagnifyingGlass,
-  MapTrifold,
+  MapPin,
+  Moon,
   Question,
-  Stack,
+  Buildings,
+  Sun,
 } from '@phosphor-icons/react';
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { t } from '../lib/i18n';
 import { flushQueuedReports } from '../lib/storage';
 
 export function useViewNavigate() {
@@ -28,7 +29,7 @@ export function useViewNavigate() {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
-  const { lang, setLang, highContrast, toggleHighContrast, hydrate } = useAppStore();
+  const { lang, setLang, theme, toggleTheme, hydrate } = useAppStore();
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
@@ -51,75 +52,96 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { to: '/', label: lang === 'hi' ? 'होम' : 'Home', icon: Compass },
     { to: '/find', label: lang === 'hi' ? 'खोजें' : 'Find', icon: MagnifyingGlass },
-    { to: '/map', label: lang === 'hi' ? 'नक्शा' : 'Map', icon: MapTrifold },
-    { to: '/floors/34', label: lang === 'hi' ? 'मंज़िलें' : '34 Floors', icon: Stack },
+    { to: '/map', label: lang === 'hi' ? 'नक्शा' : 'Map', icon: MapPin },
+    { to: '/floors/34', label: lang === 'hi' ? 'मंज़िलें' : 'Floors', icon: Buildings },
     { to: '/lost', label: lang === 'hi' ? 'खो गए' : 'Lost', icon: Question },
   ];
 
   return (
-    <div className="paper-grain min-h-dvh flex flex-col bg-paper text-ink">
-      {/* Top signage bar */}
-      <header className="sticky top-0 z-40 border-b border-ink bg-paper px-3 py-2 flex items-center justify-between gap-2">
-        <Link to="/" className="flex items-center gap-2 min-h-12 px-1">
-          <span className="inline-flex items-center justify-center bg-brick text-paper font-block-numeral text-sm px-2 py-1 border border-ink">
+    <div
+      className="h-dvh w-full overflow-hidden flex flex-col"
+      style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
+    >
+      {/* Clean Top App Bar */}
+      <header
+        className="shrink-0 z-40 px-4 py-2.5 flex items-center justify-between gap-3 border-b"
+        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
+        <Link to="/" className="flex items-center gap-2.5 min-h-10">
+          <span
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-display font-bold text-sm"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
             34
           </span>
-          <span className="font-mono text-xs tracking-wider uppercase font-semibold truncate">
-            {t(lang, 'subtitle')}
-          </span>
+          <div className="leading-tight">
+            <span className="block font-display font-bold text-sm tracking-tight">
+              {lang === 'hi' ? 'LPU कैंपस मैप' : 'LPU Campus Nav'}
+            </span>
+            <span
+              className="block text-[11px]"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {lang === 'hi' ? 'सभी ब्लॉक व कमरे' : 'All Blocks & Rooms'}
+            </span>
+          </div>
         </Link>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {!online && (
-            <span className="border border-ink bg-sandstone px-2 py-1 font-mono text-[11px] uppercase">
-              {t(lang, 'offlineReady')}
+            <span
+              className="rounded-full px-2.5 py-1 text-[11px] font-medium"
+              style={{ backgroundColor: 'var(--surface-muted)', color: 'var(--text-muted)' }}
+            >
+              Offline
             </span>
           )}
           <button
             type="button"
-            onClick={toggleHighContrast}
-            aria-pressed={highContrast}
-            className={`min-h-12 px-2.5 border border-ink font-mono text-xs uppercase cursor-pointer ${
-              highContrast ? 'bg-ink text-paper' : 'bg-paper text-ink'
-            }`}
-            title={t(lang, 'highContrast')}
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+            className="w-9 h-9 rounded-full flex items-center justify-center border cursor-pointer transition-colors"
+            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-muted)' }}
           >
-            HC
+            {theme === 'dark' ? <Sun size={17} weight="bold" /> : <Moon size={17} weight="bold" />}
           </button>
           <button
             type="button"
             onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
-            className="min-h-12 px-3 border border-ink bg-sandstone text-ink font-mono text-xs font-semibold uppercase cursor-pointer"
-            aria-label="Switch language"
+            className="h-9 px-3 rounded-full text-xs font-semibold border cursor-pointer transition-colors"
+            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-muted)' }}
           >
             {lang === 'en' ? 'हिन्दी' : 'EN'}
           </button>
         </div>
       </header>
 
-      {/* Main viewport */}
-      <main className="flex-1 flex flex-col pb-20">{children}</main>
+      {/* Main Content */}
+      <main className="flex-1 min-h-0 overflow-y-auto relative flex flex-col">
+        {children}
+      </main>
 
-      {/* Bottom thumb navigation */}
+      {/* Clean Bottom Tab Bar */}
       <nav
         aria-label="Primary"
-        className="fixed bottom-0 inset-x-0 z-40 border-t border-ink bg-paper grid grid-cols-5"
+        className="shrink-0 z-40 border-t grid grid-cols-5 px-2 py-1.5"
+        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
       >
         {navItems.map((item) => {
           const active =
-            item.to === '/'
-              ? pathname === '/'
-              : pathname.startsWith(item.to);
+            item.to === '/' ? pathname === '/' : pathname.startsWith(item.to);
           const Icon = item.icon;
           return (
             <Link
               key={item.to}
               to={item.to}
-              className={`min-h-14 flex flex-col items-center justify-center gap-0.5 border-r last:border-r-0 border-ink text-[11px] font-mono uppercase tracking-tight ${
-                active ? 'bg-signal text-ink font-semibold' : 'bg-paper text-ink'
-              }`}
+              className="flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[11px] font-medium transition-colors"
+              style={{
+                color: active ? 'var(--accent)' : 'var(--text-muted)',
+                backgroundColor: active ? 'var(--accent-soft)' : 'transparent',
+              }}
             >
-              <Icon size={20} weight="bold" />
+              <Icon size={20} weight={active ? 'fill' : 'regular'} />
               <span>{item.label}</span>
             </Link>
           );

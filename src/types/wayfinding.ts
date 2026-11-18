@@ -8,10 +8,12 @@ export type NodeKind =
   | 'anchor';
 
 export interface GraphNode {
-  id: string; // e.g. "b34.f4.stairsA"
-  x: number; // campus-local metres, origin at main gate
+  id: string;
+  x: number;
   y: number;
-  floor: number; // 0 = ground
+  lat?: number;
+  lng?: number;
+  floor: number;
   kind: NodeKind;
   block?: number;
   label?: { en: string; hi: string };
@@ -21,7 +23,7 @@ export interface GraphEdge {
   a: string;
   b: string;
   meters: number;
-  accessible: boolean; // false for stairs-only links
+  accessible: boolean;
   crowd?: 'hall' | 'stairs';
   landmark?: {
     en: string;
@@ -29,7 +31,7 @@ export interface GraphEdge {
     side?: 'left' | 'right';
   };
   verified: boolean;
-  verifiedOn?: string; // ISO date
+  verifiedOn?: string;
 }
 
 export type PlaceCategory =
@@ -45,7 +47,7 @@ export type PlaceCategory =
 
 export interface Place {
   id: string;
-  names: string[]; // [en, ...]
+  names: string[];
   hiName?: string;
   aliases: string[];
   block?: number;
@@ -55,6 +57,12 @@ export interface Place {
   category: PlaceCategory;
   photo?: string;
   hours?: string;
+  address?: string;
+  rating?: number;
+  userRatingCount?: number;
+  googlePlaceId?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface BuildingFootprint {
@@ -62,10 +70,9 @@ export interface BuildingFootprint {
   block?: number;
   name: string;
   hiName: string;
-  /** Polygon points in campus-local metres */
   points: [number, number][];
   heightM: number;
-  kind: 'academic' | 'admin' | 'facility' | 'gate';
+  kind: 'academic' | 'admin' | 'facility' | 'gate' | 'hostel';
   placeId?: string;
   floors?: number;
 }
@@ -77,12 +84,12 @@ export interface LandmarkTriageItem {
   area: string;
   hiArea: string;
   photo: string;
-  visibleFrom: string[]; // nodeIds
+  visibleFrom: string[];
 }
 
 export interface ClassChangeWindow {
-  start: string; // "09:50"
-  end: string; // "10:00"
+  start: string;
+  end: string;
 }
 
 export interface AppConfig {

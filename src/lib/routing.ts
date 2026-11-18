@@ -433,6 +433,26 @@ export function findNearestOutdoorNode(x: number, y: number): GraphNode {
   return best;
 }
 
+export function findNearestNodeByLatLng(
+  lat: number,
+  lng: number
+): { node: GraphNode; distanceMeters: number } {
+  let best = GRAPH_NODES[0];
+  let bestMeters = Infinity;
+  const radLat = (lat * Math.PI) / 180;
+  for (const n of GRAPH_NODES) {
+    if (n.floor !== 0 || n.lat === undefined || n.lng === undefined) continue;
+    const dx = ((n.lng - lng) * Math.PI) / 180 * 6371000 * Math.cos(radLat);
+    const dy = ((n.lat - lat) * Math.PI) / 180 * 6371000;
+    const d = Math.hypot(dx, dy);
+    if (d < bestMeters) {
+      bestMeters = d;
+      best = n;
+    }
+  }
+  return { node: best, distanceMeters: Math.round(bestMeters) };
+}
+
 export function formatDuration(seconds: number, lang: 'en' | 'hi' = 'en'): string {
   const mins = Math.max(1, Math.round(seconds / 60));
   return lang === 'hi' ? `${mins} मि` : `${mins} min`;

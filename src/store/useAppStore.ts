@@ -2,17 +2,21 @@ import { create } from 'zustand';
 import type { Lang } from '../types/wayfinding';
 import { loadFavorites, loadRecent, saveFavorites, saveRecent } from '../lib/storage';
 
+type ThemeMode = 'light' | 'dark';
+
 interface AppState {
   lang: Lang;
+  theme: ThemeMode;
   highContrast: boolean;
   startNodeId: string;
   accessible: boolean;
   voiceEnabled: boolean;
-  classStartTime: string; // HH:MM
+  classStartTime: string;
   favorites: string[];
   recent: string[];
   hydrated: boolean;
   setLang: (lang: Lang) => void;
+  toggleTheme: () => void;
   toggleHighContrast: () => void;
   setStartNodeId: (nodeId: string) => void;
   toggleAccessible: () => void;
@@ -28,8 +32,20 @@ const persistedLang =
     ? 'hi'
     : 'en';
 
+const initialTheme: ThemeMode =
+  typeof localStorage !== 'undefined' && localStorage.getItem('wb34_theme') === 'dark'
+    ? 'dark'
+    : typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches
+    ? 'dark'
+    : 'light';
+
+if (typeof document !== 'undefined') {
+  document.documentElement.setAttribute('data-theme', initialTheme);
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   lang: persistedLang,
+  theme: initialTheme,
   highContrast: false,
   startNodeId: 'gate.main',
   accessible: false,
@@ -44,6 +60,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       localStorage.setItem('wb34_lang', lang);
     }
     set({ lang });
+  },
+
+  toggleTheme: () => {
+    const next: ThemeMode = get().theme === 'light' ? 'dark' : 'light';
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('wb34_theme', next);
+    }
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', next);
+    }
+    set({ theme: next });
   },
 
   toggleHighContrast: () => {

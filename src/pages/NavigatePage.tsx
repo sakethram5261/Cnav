@@ -7,7 +7,7 @@ import {
   ArrowsClockwise,
   Check,
 } from '@phosphor-icons/react';
-import { CampusMapSvg } from '../components/CampusMapSvg';
+import { LpuLeafletMap } from '../components/LpuLeafletMap';
 import { computeRoute, findNearestOutdoorNode, formatDuration, getNode } from '../lib/routing';
 import { PLACES } from '../data/campusGraph';
 import { t } from '../lib/i18n';
@@ -34,7 +34,6 @@ export function NavigatePage() {
   const viewNavigate = useViewNavigate();
 
   const [activeStep, setActiveStep] = useState(0);
-  const [sheetSnap, setSheetSnap] = useState<'peek' | 'half' | 'full'>('half');
   const [arrived, setArrived] = useState(false);
   const [reportNotice, setReportNotice] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -128,87 +127,96 @@ export function NavigatePage() {
     el?.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
   };
 
+  const handleCarouselScroll = () => {
+    const el = carouselRef.current;
+    if (!el || !route) return;
+    const cardWidth = el.firstElementChild?.clientWidth ?? 300;
+    const idx = Math.round(el.scrollLeft / (cardWidth + 12));
+    if (idx >= 0 && idx < route.steps.length && idx !== activeStep) {
+      setActiveStep(idx);
+    }
+  };
+
   if (!route) {
     return (
       <div className="p-6 max-w-xl mx-auto">
-        <p className="border border-ink bg-paper p-4 font-mono text-sm">
+        <p className="rounded-2xl border p-4 text-sm" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
           No route found between {decodedFrom} and {decodedTo}.
         </p>
       </div>
     );
   }
 
-  const sheetHeightClass =
-    sheetSnap === 'peek' ? 'h-36' : sheetSnap === 'full' ? 'h-[68dvh]' : 'h-[44dvh]';
-
-  const bottomInset = sheetSnap === 'peek' ? 140 : sheetSnap === 'full' ? 420 : 280;
-
   return (
-    <div className="relative flex-1 flex flex-col h-[calc(100dvh-7.5rem)] overflow-hidden">
-      <div className="z-20 border-b border-ink bg-paper px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+    <div className="w-full h-full flex flex-col overflow-hidden">
+      {/* Route Summary Header */}
+      <div
+        className="shrink-0 z-20 border-b px-4 py-2.5 flex flex-wrap items-center justify-between gap-2"
+        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+      >
         <div className="flex items-center gap-2 min-w-0">
-          <span
-            className="font-block-numeral text-base uppercase truncate"
-            style={
-              destPlace
-                ? ({ viewTransitionName: `place-${destPlace.id}` } as React.CSSProperties)
-                : undefined
-            }
-          >
+          <span className="font-display font-bold text-sm truncate">
             {destPlace
               ? lang === 'hi' && destPlace.hiName
                 ? destPlace.hiName
                 : destPlace.names[0]
               : decodedTo}
           </span>
-          <span className="font-mono text-xs border border-ink bg-sandstone px-1.5 py-0.5">
+          <span
+            className="rounded-full px-2.5 py-0.5 text-xs font-semibold"
+            style={{ backgroundColor: 'var(--surface-muted)' }}
+          >
             {formatDuration(route.totalSeconds, lang)} · {route.totalMeters} m
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <span
-            className={`font-mono text-[11px] uppercase px-2 py-0.5 border border-ink ${
-              route.allVerified ? 'bg-moss text-paper' : 'bg-signal text-ink'
-            }`}
-          >
-            {route.allVerified
-              ? `${t(lang, 'verifiedChip')} ${route.oldestVerifiedOn ?? ''}`
-              : t(lang, 'unverifiedChip')}
-          </span>
-        </div>
+        <span
+          className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold text-white"
+          style={{
+            backgroundColor: route.allVerified ? 'var(--verified)' : 'var(--warning)',
+          }}
+        >
+          {route.allVerified
+            ? `${t(lang, 'verifiedChip')}`
+            : t(lang, 'unverifiedChip')}
+        </span>
       </div>
 
       {classTimer && (
         <div
-          className={`z-20 border-b border-ink px-3 py-1.5 flex items-center justify-between font-mono text-xs ${
-            classTimer.isLate ? 'bg-signal text-ink font-semibold' : 'bg-sandstone text-ink'
-          }`}
+          className="shrink-0 z-20 border-b px-4 py-1.5 flex items-center justify-between text-xs font-medium"
+          style={{
+            backgroundColor: classTimer.isLate ? 'rgba(217, 119, 6, 0.16)' : 'var(--surface-muted)',
+            borderColor: 'var(--border)',
+          }}
         >
           <span>
-            {t(lang, 'leaveBy')} {classTimer.leaveStr}
+            {t(lang, 'leaveBy')} <strong>{classTimer.leaveStr}</strong>
           </span>
           <span>{classTimer.isLate ? t(lang, 'lateWarning') : t(lang, 'onTime')}</span>
         </div>
       )}
 
-      <div className="flex-1 relative">
-        <CampusMapSvg
+      {/* Exact LPU Leaflet Map */}
+      <div className="flex-1 min-h-0 relative">
+        <LpuLeafletMap
           route={route}
           activeStepIndex={activeStep}
           youNodeId={currentStep?.fromNode ?? decodedFrom}
           lang={lang}
-          bottomInsetPx={bottomInset}
         />
 
-        <div className="absolute top-2 right-2 flex flex-col gap-1.5 z-10">
+        <div className="absolute top-3 right-3 flex flex-col gap-2 z-[500]">
           <button
             type="button"
             onClick={toggleAccessible}
             aria-pressed={accessible}
-            className={`min-h-11 px-2.5 border border-ink flex items-center gap-1.5 font-mono text-[11px] uppercase cursor-pointer ${
-              accessible ? 'bg-signal text-ink font-semibold' : 'bg-paper text-ink'
-            }`}
+            className="h-9 px-3 rounded-full shadow-md flex items-center gap-1.5 text-xs font-semibold border cursor-pointer"
+            style={{
+              backgroundColor: accessible ? 'var(--accent)' : 'var(--surface)',
+              color: accessible ? '#FFFFFF' : 'var(--text)',
+              borderColor: 'var(--border)',
+            }}
           >
             <AccessibleIcon className="w-4 h-4" />
             <span>{t(lang, 'accessibleRoute')}</span>
@@ -218,9 +226,12 @@ export function NavigatePage() {
             type="button"
             onClick={handleToggleVoice}
             aria-pressed={voiceEnabled}
-            className={`min-h-11 px-2.5 border border-ink flex items-center gap-1.5 font-mono text-[11px] uppercase cursor-pointer ${
-              voiceEnabled ? 'bg-signal text-ink font-semibold' : 'bg-paper text-ink'
-            }`}
+            className="h-9 px-3 rounded-full shadow-md flex items-center gap-1.5 text-xs font-semibold border cursor-pointer"
+            style={{
+              backgroundColor: voiceEnabled ? 'var(--accent)' : 'var(--surface)',
+              color: voiceEnabled ? '#FFFFFF' : 'var(--text)',
+              borderColor: 'var(--border)',
+            }}
           >
             <VoiceIcon className="w-4 h-4" />
             <span>{voiceEnabled ? t(lang, 'voiceOn') : t(lang, 'voiceOff')}</span>
@@ -228,63 +239,58 @@ export function NavigatePage() {
         </div>
       </div>
 
+      {/* Turn-by-turn Bottom Sheet */}
       <section
         aria-label="Turn-by-turn directions"
-        className={`z-30 border-t border-ink bg-paper flex flex-col transition-[height] duration-280 ${sheetHeightClass}`}
+        className="shrink-0 z-[500] border-t flex flex-col"
+        style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
       >
-        <button
-          type="button"
-          onClick={() =>
-            setSheetSnap((s) => (s === 'peek' ? 'half' : s === 'half' ? 'full' : 'peek'))
-          }
-          className="w-full py-2 flex items-center justify-center border-b border-ink/20 cursor-pointer"
-          aria-label="Resize directions sheet"
-        >
-          <span className="w-10 h-1 bg-ink" />
-        </button>
-
         {!isSpeechSynthesisSupported() && voiceEnabled && (
-          <p className="px-3 py-1 bg-sandstone border-b border-ink font-mono text-[11px]">
+          <p
+            className="px-4 py-1.5 text-xs border-b"
+            style={{ backgroundColor: 'var(--surface-muted)', borderColor: 'var(--border)' }}
+          >
             {t(lang, 'voiceUnavailable')}
           </p>
         )}
 
         <div
           ref={carouselRef}
+          onScroll={handleCarouselScroll}
           aria-live="polite"
-          className="flex-1 overflow-x-auto snap-x snap-mandatory flex gap-3 p-3"
+          className="overflow-x-auto no-scrollbar snap-x snap-mandatory flex gap-3 p-3"
         >
           {route.steps.map((step, idx) => {
             const active = idx === activeStep;
             return (
               <article
                 key={step.id}
-                onClick={() => setActiveStep(idx)}
-                className={`snap-start shrink-0 w-[85%] sm:w-[340px] border border-ink p-3 flex flex-col justify-between cursor-pointer ${
-                  active ? 'bg-signal text-ink' : 'bg-paper text-ink'
-                }`}
+                onClick={() => goStep(idx)}
+                className="snap-start shrink-0 w-[84%] sm:w-[320px] rounded-2xl border p-3.5 flex flex-col justify-between cursor-pointer transition-all"
+                style={{
+                  backgroundColor: active ? 'var(--accent-soft)' : 'var(--bg)',
+                  borderColor: active ? 'var(--accent)' : 'var(--border)',
+                }}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-mono text-xs font-semibold uppercase">
-                    STEP {idx + 1} / {route.steps.length}
+                <div className="flex items-center justify-between gap-2 text-xs font-semibold">
+                  <span style={{ color: active ? 'var(--accent)' : 'var(--text-muted)' }}>
+                    Step {idx + 1} of {route.steps.length}
                   </span>
-                  <span className="flex items-center gap-1 font-mono text-xs">
+                  <span className="flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
                     {step.kind === 'stairs' && <StairsIcon className="w-4 h-4" />}
                     {step.kind === 'lift' && <LiftIcon className="w-4 h-4" />}
                     {step.meters > 0 && `${step.meters} m`}
                   </span>
                 </div>
 
-                <p className="font-semibold text-base leading-snug my-2">
+                <p className="font-semibold text-sm leading-snug my-2">
                   {lang === 'hi' ? step.instruction.hi : step.instruction.en}
                 </p>
 
-                <div className="flex items-center justify-between font-mono text-[11px] uppercase">
+                <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)' }}>
                   <span>
-                    {step.floorFrom === 0 ? 'G' : `F${step.floorFrom}`}
-                    {step.floorTo !== step.floorFrom
-                      ? ` → F${step.floorTo}`
-                      : ''}
+                    {step.floorFrom === 0 ? 'Ground' : `Floor ${step.floorFrom}`}
+                    {step.floorTo !== step.floorFrom ? ` → Floor ${step.floorTo}` : ''}
                   </span>
                   {step.floorTo > 0 && (
                     <button
@@ -293,9 +299,10 @@ export function NavigatePage() {
                         e.stopPropagation();
                         viewNavigate('/floors/34');
                       }}
-                      className="underline font-semibold cursor-pointer"
+                      className="font-semibold underline cursor-pointer"
+                      style={{ color: 'var(--accent)' }}
                     >
-                      {t(lang, 'floorGuide')}
+                      {t(lang, 'floorGuide')} →
                     </button>
                   )}
                 </div>
@@ -304,13 +311,17 @@ export function NavigatePage() {
           })}
         </div>
 
-        <div className="border-t border-ink px-3 py-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1">
+        <div
+          className="border-t px-3 py-2 flex items-center justify-between gap-2"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => goStep(activeStep - 1)}
               disabled={activeStep === 0}
-              className="min-w-11 min-h-11 border border-ink flex items-center justify-center disabled:opacity-35 cursor-pointer"
+              className="w-10 h-10 rounded-xl border flex items-center justify-center disabled:opacity-35 cursor-pointer"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-muted)' }}
               aria-label={t(lang, 'prevStep')}
             >
               <CaretLeft size={18} weight="bold" />
@@ -319,7 +330,8 @@ export function NavigatePage() {
               type="button"
               onClick={() => goStep(activeStep + 1)}
               disabled={activeStep === route.steps.length - 1}
-              className="min-w-11 min-h-11 border border-ink flex items-center justify-center disabled:opacity-35 cursor-pointer"
+              className="w-10 h-10 rounded-xl border flex items-center justify-center disabled:opacity-35 cursor-pointer"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-muted)' }}
               aria-label={t(lang, 'nextStep')}
             >
               <CaretRight size={18} weight="bold" />
@@ -327,26 +339,29 @@ export function NavigatePage() {
             <button
               type="button"
               onClick={handleOffRoute}
-              className="min-h-11 px-2.5 border border-ink flex items-center gap-1 font-mono text-xs uppercase cursor-pointer"
+              className="h-10 px-3 rounded-xl border flex items-center gap-1.5 text-xs font-medium cursor-pointer"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-muted)' }}
             >
-              <ArrowsClockwise size={16} weight="bold" />
+              <ArrowsClockwise size={15} weight="bold" />
               <span>{t(lang, 'offRoute')}</span>
             </button>
             <button
               type="button"
               onClick={handleReport}
-              className="min-w-11 min-h-11 border border-ink flex items-center justify-center cursor-pointer"
+              className="w-10 h-10 rounded-xl border flex items-center justify-center cursor-pointer"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-muted)' }}
               title={t(lang, 'reportWrong')}
               aria-label={t(lang, 'reportWrong')}
             >
-              <Flag size={16} weight="bold" />
+              <Flag size={15} weight="bold" />
             </button>
           </div>
 
           <button
             type="button"
             onClick={handleArrive}
-            className="min-h-11 px-3 border border-ink bg-moss text-paper font-mono text-xs font-semibold uppercase flex items-center gap-1.5 cursor-pointer"
+            className="h-10 px-4 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            style={{ backgroundColor: 'var(--verified)' }}
           >
             <Check size={16} weight="bold" />
             <span>{t(lang, 'arrivedBtn')}</span>
@@ -354,7 +369,7 @@ export function NavigatePage() {
         </div>
 
         {reportNotice && (
-          <p className="px-3 py-1.5 bg-sandstone border-t border-ink font-mono text-xs">
+          <p className="px-4 py-1.5 text-xs border-t" style={{ borderColor: 'var(--border)' }}>
             {reportNotice}
           </p>
         )}
@@ -362,14 +377,21 @@ export function NavigatePage() {
 
       {arrived && (
         <div
-          className="fixed inset-0 z-50 bg-ink/40 flex items-center justify-center p-6"
+          className="fixed inset-0 z-[600] bg-black/50 flex items-center justify-center p-6"
           onClick={() => setArrived(false)}
         >
-          <div className="border-4 border-moss bg-paper px-8 py-6 text-center -rotate-3">
-            <p className="font-block-numeral text-4xl text-moss tracking-wider uppercase">
-              {t(lang, 'arrivedStamp')}
-            </p>
-            <p className="font-mono text-xs mt-2 uppercase">
+          <div
+            className="rounded-3xl border p-7 text-center shadow-xl max-w-xs w-full"
+            style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+          >
+            <div
+              className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center text-white"
+              style={{ backgroundColor: 'var(--verified)' }}
+            >
+              <Check size={24} weight="bold" />
+            </div>
+            <p className="font-display font-bold text-2xl">{t(lang, 'arrivedStamp')}</p>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
               {destPlace ? destPlace.names[0] : decodedTo}
             </p>
           </div>
