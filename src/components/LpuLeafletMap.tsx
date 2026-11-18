@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Crosshair, GlobeHemisphereEast, MapTrifold } from '@phosphor-icons/react';
-import { GRAPH_NODES, PLACES } from '../data/campusGraph';
-import { detectCurrentBlock } from '../lib/geo';
+import { MapPin, MapTrifold } from '@phosphor-icons/react';
+import { PLACES } from '../data/campusGraph';
 import type { ComputedRoute, Lang, Place } from '../types/wayfinding';
 
 interface LpuLeafletMapProps {
@@ -14,265 +13,135 @@ interface LpuLeafletMapProps {
   lang: Lang;
 }
 
-const nodeMap = new Map(GRAPH_NODES.map((n) => [n.id, n]));
-const LPU_CENTER: [number, number] = [31.2545, 75.7046];
+const PLAN_WIDTH = 1527;
+const PLAN_HEIGHT = 2048;
+type Pixel = [number, number];
 
-// Hand-traced outdoor spine from Main Gate 1 to the academic quad, following the
-// visible road / covered-walkway corridor in the supplied LPU site plan. This is
-// deliberately separate from building-door nodes so a route never cuts through a block.
-const CAMPUS_SPINE: [number, number][] = [
-  [31.2606374, 75.7067638],
-  [31.26012, 75.70662],
-  [31.25945, 75.70643],
-  [31.2587, 75.70618],
-  [31.2579, 75.70608],
-  [31.25705, 75.70588],
-  [31.25615, 75.70570],
-  [31.25525, 75.70555],
-  [31.25442, 75.70535],
-  [31.25362, 75.70517],
-  [31.25282, 75.70495],
-  [31.25215, 75.70470],
-  [31.25160, 75.70455],
-  [31.2512938, 75.7047603],
+// Manually read from the supplied LPU site plan. Coordinates are x/y pixels from
+// the top-left of that plan, so markers stay on the drawn building footprints.
+const BLOCK_PIXELS: Record<number, Pixel> = {
+  1: [483, 1877], 2: [515, 1794], 3: [539, 1716], 8: [322, 1480],
+  13: [326, 1352], 14: [430, 1190], 15: [474, 1263], 18: [455, 1062],
+  19: [646, 1053], 20: [846, 1025], 21: [850, 823], 22: [815, 936],
+  25: [654, 871], 26: [603, 887], 27: [535, 918], 28: [473, 951],
+  29: [409, 973], 30: [348, 1008], 31: [281, 1043], 32: [260, 969],
+  33: [273, 900], 34: [347, 810], 35: [424, 884], 36: [370, 815],
+  37: [454, 818], 38: [540, 820], 42: [673, 720], 43: [703, 585],
+  45: [568, 514], 46: [603, 451], 47: [635, 350], 51: [287, 618],
+  52: [220, 493], 53: [154, 373], 54: [111, 325], 55: [90, 276],
+  56: [65, 225], 57: [48, 178], 58: [32, 126],
+};
+
+// Main road / walkway spine traced over the black circulation lines in the plan.
+const CAMPUS_SPINE: Pixel[] = [
+  [483, 1905], [488, 1818], [520, 1733], [503, 1648], [454, 1553],
+  [432, 1450], [420, 1358], [409, 1268], [400, 1178], [392, 1086],
+  [374, 1000], [350, 930], [323, 870], [347, 810],
 ];
+
+const GATE_PIXEL: Pixel = [483, 1905];
+
+function toLatLng([x, yTop]: Pixel): L.LatLngExpression {
+  return [PLAN_HEIGHT - yTop, x];
+}
+
+function pixelForNode(route: ComputedRoute): Pixel | null {
+  const last = route.nodes[route.nodes.length - 1] ?? '';
+  if (last.includes('b34')) return BLOCK_PIXELS[34];
+  if (last.includes('library')) return BLOCK_PIXELS[37];
+  if (last.includes('food')) return BLOCK_PIXELS[15];
+  const blockMatch = last.match(/b(\d+)\./);
+  return blockMatch ? BLOCK_PIXELS[Number(blockMatch[1])] ?? null : null;
+}
 
 function formatPinLabel(p: Place): string {
   if (p.id === 'main-gate') return 'G1';
   if (p.id === 'gs-2') return 'G2';
-  if (p.block) return `B${p.block}`;
-  return p.names[0].slice(0, 7);
+  return p.block ? `B${p.block}` : p.names[0].slice(0, 6);
 }
 
-function getPlanRoute(route: ComputedRoute): [number, number][] {
-  const start = nodeMap.get(route.nodes[0]);
-  const end = nodeMap.get(route.nodes[route.nodes.length - 1]);
-  if (!start?.lat || !start.lng || !end?.lat || !end.lng) return [];
-  const startPoint: [number, number] = [start.lat, start.lng];
-  const endPoint: [number, number] = [end.lat, end.lng];
-  return [startPoint, ...CAMPUS_SPINE.slice(1, -1), endPoint];
-}
-
-export function LpuLeafletMap({
-  route,
-  activeStepIndex = 0,
-  youNodeId = 'gate.main',
-  selectedPlaceId,
-  onSelectPlace,
-  lang,
-}: LpuLeafletMapProps) {
+export function LpuLeafletMap({ route, selectedPlaceId, onSelectPlace, lang }: LpuLeafletMapProps) {
   const mapElRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const tileLayerRef = useRef<L.TileLayer | null>(null);
-  const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const routeLayerRef = useRef<L.LayerGroup | null>(null);
-  const gpsMarkerRef = useRef<L.CircleMarker | null>(null);
+  const markersRef = useRef<L.LayerGroup | null>(null);
+  const routeRef = useRef<L.LayerGroup | null>(null);
+  const [streetMode, setStreetMode] = useState(false);
+  const tileRef = useRef<L.TileLayer | null>(null);
 
-  const [satellite, setSatellite] = useState(false);
-  const [locating, setLocating] = useState(false);
-
-  useEffect(() => {
-    const el = mapElRef.current;
-    if (!el || mapRef.current) return;
-
-    const map = L.map(el, {
-      center: LPU_CENTER,
-      zoom: 16,
-      minZoom: 14,
-      maxZoom: 19,
-      zoomControl: false,
-      attributionControl: true,
-    });
-
-    L.control.zoom({ position: 'topleft' }).addTo(map);
-
-    const markersLayer = L.layerGroup().addTo(map);
-    const routeLayer = L.layerGroup().addTo(map);
-
-    mapRef.current = map;
-    markersLayerRef.current = markersLayer;
-    routeLayerRef.current = routeLayer;
-
-    const ro = new ResizeObserver(() => map.invalidateSize());
-    ro.observe(el);
-
-    return () => {
-      ro.disconnect();
-      map.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
-    }
-
-    const url = satellite
-      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-    const attr = satellite
-      ? 'Tiles &copy; Esri'
-      : '&copy; OpenStreetMap contributors';
-
-    const layer = L.tileLayer(url, {
-      maxZoom: 19,
-      attribution: attr,
-    }).addTo(map);
-
-    tileLayerRef.current = layer;
-  }, [satellite]);
-
+  const planBounds = useMemo(() => L.latLngBounds([0, 0], [PLAN_HEIGHT, PLAN_WIDTH]), []);
   const mapPlaces = useMemo(
-    () => PLACES.filter((p) => p.lat !== undefined && p.lng !== undefined && !p.room),
+    () => PLACES.filter((p) => p.block && BLOCK_PIXELS[p.block] && !p.room),
     []
   );
 
   useEffect(() => {
-    const layer = markersLayerRef.current;
+    const el = mapElRef.current;
+    if (!el || mapRef.current) return;
+    const map = L.map(el, { crs: L.CRS.Simple, center: toLatLng([760, 1040]), zoom: -0.35, minZoom: -1.4, maxZoom: 2.2, zoomControl: false, attributionControl: false, maxBounds: planBounds, maxBoundsViscosity: 0.92 });
+    L.control.zoom({ position: 'topleft' }).addTo(map);
+    L.imageOverlay('/lpu-site-plan.webp', planBounds, { opacity: 1 }).addTo(map);
+    const markers = L.layerGroup().addTo(map);
+    const routes = L.layerGroup().addTo(map);
+    mapRef.current = map;
+    markersRef.current = markers;
+    routeRef.current = routes;
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(el);
+    return () => { ro.disconnect(); map.remove(); mapRef.current = null; };
+  }, [planBounds]);
+
+  useEffect(() => {
+    const layer = markersRef.current;
     if (!layer) return;
     layer.clearLayers();
-
-    for (const p of mapPlaces) {
-      if (!p.lat || !p.lng) continue;
-      const isSelected = p.id === selectedPlaceId;
-      const isPrimary =
-        p.block === 34 ||
-        p.block === 36 ||
-        p.category === 'gate' ||
-        p.category === 'library' ||
-        p.category === 'food';
-      const label = formatPinLabel(p);
-
-      const icon = L.divIcon({
-        className: 'lpu-pin',
-        html: `<div class="lpu-pin-badge ${isPrimary ? 'is-primary' : ''} ${
-          isSelected ? 'is-selected' : ''
-        }">${label}</div>`,
-        iconSize: [0, 0],
-        iconAnchor: [16, 12],
-      });
-
-      const marker = L.marker([p.lat, p.lng], { icon });
-      marker.bindTooltip(lang === 'hi' && p.hiName ? p.hiName : p.names[0], {
-        direction: 'top',
-        offset: [0, -10],
-      });
-      marker.on('click', () => {
-        onSelectPlace?.(p);
-      });
+    const all = [...mapPlaces];
+    for (const p of all) {
+      if (!p.block) continue;
+      const pin = L.divIcon({ className: 'lpu-plan-pin', html: `<span class="lpu-plan-pin__badge ${p.id === selectedPlaceId ? 'is-selected' : ''}">${formatPinLabel(p)}</span>`, iconSize: [0, 0], iconAnchor: [0, 0] });
+      const marker = L.marker(toLatLng(BLOCK_PIXELS[p.block]), { icon: pin, title: lang === 'hi' && p.hiName ? p.hiName : p.names[0] });
+      marker.bindTooltip(lang === 'hi' && p.hiName ? p.hiName : p.names[0], { direction: 'top', offset: [0, -8] });
+      marker.on('click', () => onSelectPlace?.(p));
       marker.addTo(layer);
     }
+    const gatePin = L.divIcon({ className: 'lpu-plan-pin', html: '<span class="lpu-plan-pin__badge is-gate">G1</span>', iconSize: [0, 0], iconAnchor: [0, 0] });
+    L.marker(toLatLng(GATE_PIXEL), { icon: gatePin, title: 'Main Gate' }).addTo(layer);
   }, [mapPlaces, selectedPlaceId, onSelectPlace, lang]);
 
   useEffect(() => {
-    const map = mapRef.current;
-    const layer = routeLayerRef.current;
-    if (!map || !layer) return;
+    const layer = routeRef.current;
+    if (!layer) return;
     layer.clearLayers();
+    if (!route) return;
+    const destination = pixelForNode(route);
+    if (!destination) return;
+    const pixels = [...CAMPUS_SPINE.slice(0, -1), destination];
+    L.polyline(pixels.map(toLatLng), { color: '#171313', weight: 13, opacity: 0.36, lineCap: 'round', lineJoin: 'round' }).addTo(layer);
+    L.polyline(pixels.map(toLatLng), { color: '#b51e2b', weight: 7, opacity: 1, dashArray: '17 10', lineCap: 'round', lineJoin: 'round' }).addTo(layer);
+  }, [route]);
 
-    if (route) {
-      const fullCoords = getPlanRoute(route);
-
-      if (fullCoords.length >= 2) {
-        L.polyline(fullCoords, {
-          color: '#14171A',
-          weight: 8,
-          opacity: 0.2,
-        }).addTo(layer);
-
-        L.polyline(fullCoords, {
-          color: '#D9531E',
-          weight: 5,
-          opacity: 0.5,
-        }).addTo(layer);
-
-        // Keep the highlighted route on the same manually traced outdoor spine.
-        // Indoor stair/lift steps stay in the instruction cards instead of being
-        // drawn as a false outdoor segment.
-
-        const bounds = L.latLngBounds(fullCoords);
-        map.fitBounds(bounds, { padding: [48, 48], maxZoom: 18 });
-      }
-    }
-
-    const you = nodeMap.get(youNodeId);
-    if (you?.lat && you?.lng) {
-      L.circleMarker([you.lat, you.lng], {
-        radius: 8,
-        color: '#FFFFFF',
-        weight: 3,
-        fillColor: '#2563EB',
-        fillOpacity: 1,
-      }).addTo(layer);
-    }
-  }, [route, activeStepIndex, youNodeId]);
-
-  const handleLocateMe = async () => {
+  useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    setLocating(true);
-    const res = await detectCurrentBlock();
-    setLocating(false);
-    if (res.ok) {
-      if (gpsMarkerRef.current) {
-        map.removeLayer(gpsMarkerRef.current);
-      }
-      gpsMarkerRef.current = L.circleMarker([res.lat, res.lng], {
-        radius: 9,
-        color: '#FFFFFF',
-        weight: 3,
-        fillColor: '#16A34A',
-        fillOpacity: 1,
-      }).addTo(map);
-      if (res.offCampus && res.node.lat && res.node.lng) {
-        map.setView([res.node.lat, res.node.lng], 17);
-      } else {
-        map.setView([res.lat, res.lng], 17);
-      }
+    if (tileRef.current) { map.removeLayer(tileRef.current); tileRef.current = null; }
+    if (streetMode) {
+      tileRef.current = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { opacity: 0.88, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+      map.setView([31.2545, 75.7046], 16);
     } else {
-      map.setView(LPU_CENTER, 16);
+      map.fitBounds(planBounds, { padding: [18, 18] });
     }
-  };
+  }, [streetMode, planBounds]);
 
   return (
     <div className="relative w-full h-full">
       <div ref={mapElRef} className="w-full h-full" />
-
       <div className="absolute top-3 left-14 z-[500] flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setSatellite((s) => !s)}
-          className="h-9 px-3 rounded-full shadow-md flex items-center gap-1.5 text-xs font-semibold cursor-pointer border"
-          style={{
-            backgroundColor: 'var(--surface)',
-            color: 'var(--text)',
-            borderColor: 'var(--border)',
-          }}
-        >
-          {satellite ? <MapTrifold size={15} weight="bold" /> : <GlobeHemisphereEast size={15} weight="bold" />}
-          <span>{satellite ? 'Street Map' : 'Satellite'}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={handleLocateMe}
-          aria-label="Locate me"
-          className="h-9 px-3 rounded-full shadow-md flex items-center gap-1.5 text-xs font-semibold cursor-pointer border"
-          style={{
-            backgroundColor: 'var(--surface)',
-            color: 'var(--text)',
-            borderColor: 'var(--border)',
-          }}
-        >
-          <Crosshair size={15} weight="bold" />
-          <span>{locating ? 'Locating…' : 'Locate'}</span>
+        <button type="button" onClick={() => setStreetMode((v) => !v)} className="h-9 px-3 rounded-full shadow-md flex items-center gap-1.5 text-xs font-semibold cursor-pointer border" style={{ backgroundColor: 'var(--surface)', color: 'var(--text)', borderColor: 'var(--border)' }}>
+          {streetMode ? <MapTrifold size={15} weight="bold" /> : <MapPin size={15} weight="fill" />}
+          <span>{streetMode ? 'Campus plan' : 'Street context'}</span>
         </button>
       </div>
+      {route && <div className="absolute bottom-3 left-3 rounded-lg px-3 py-2 shadow-lg text-xs font-semibold border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--accent)' }}><span style={{ color: 'var(--accent)' }}>Dashed red route</span> follows the traced road/walkway spine from the official plan.</div>}
+      <div className="absolute bottom-3 right-3 rounded-lg px-3 py-2 shadow-lg text-[10px] font-semibold border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>LPU site plan · interactive layer</div>
     </div>
   );
 }
