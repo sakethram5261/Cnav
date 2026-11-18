@@ -87,5 +87,8 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 
 .lpu-plan-frame { background: #cfe8a8; background-image: linear-gradient(135deg, rgba(255,255,255,.18), transparent 35%); }
 .lpu-plan-frame img { image-rendering: auto; }
+.lpu-plan-pin { background: transparent; border: none; }
+.lpu-plan-pin__badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #fff; border: 2px solid #fff; box-shadow: 0 2px 7px rgba(26,27,30,.35); font: 700 11px/1 "IBM Plex Mono", monospace; cursor: pointer; transition: transform 150ms ease, background 150ms ease; }
+.lpu-plan-pin__badge:hover, .lpu-plan-pin__badge.is-selected { background: var(--gold); color: var(--text); transform: scale(1.2); }
 .lpu-rule { height: 4px; background: linear-gradient(90deg, var(--accent) 0 74%, var(--gold) 74% 100%); }
 @media (min-width: 768px) { .lpu-desktop-grid { grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr); } }

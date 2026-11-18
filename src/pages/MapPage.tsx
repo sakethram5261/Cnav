@@ -14,7 +14,7 @@ export function MapPage() {
   const { lang, startNodeId } = useAppStore();
   const viewNavigate = useViewNavigate();
   const [selected, setSelected] = useState<Place | null>(null);
-  const [mode, setMode] = useState<MapMode>('plan');
+  const [mode, setMode] = useState<MapMode>('live');
 
   return (
     <div className="relative w-full h-full flex flex-col overflow-hidden">
@@ -25,8 +25,8 @@ export function MapPage() {
         </div>
         <div className="flex rounded-lg border shadow-md overflow-hidden pointer-events-auto" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
           {([
-            ['plan', 'Site plan'],
             ['live', 'Live map'],
+            ['plan', 'Reference plan'],
             ['list', `List (${PLACES.length})`],
           ] as const).map(([value, label]) => (
             <button key={value} type="button" onClick={() => setMode(value)} className="h-9 px-3 text-xs font-semibold cursor-pointer" style={{ backgroundColor: mode === value ? 'var(--accent)' : 'transparent', color: mode === value ? '#fff' : 'var(--text)' }}>
