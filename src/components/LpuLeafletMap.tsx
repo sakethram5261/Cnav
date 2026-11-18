@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
-import { MapPin } from '@phosphor-icons/react';
+import { MapPin, MapTrifold } from '@phosphor-icons/react';
 import { PLACES } from '../data/campusGraph';
 import type { ComputedRoute, Lang, Place } from '../types/wayfinding';
 
@@ -65,6 +65,8 @@ export function LpuLeafletMap({ route, selectedPlaceId, onSelectPlace, lang }: L
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.LayerGroup | null>(null);
   const routeRef = useRef<L.LayerGroup | null>(null);
+  const [streetMode, setStreetMode] = useState(false);
+  const tileRef = useRef<L.TileLayer | null>(null);
 
   const planBounds = useMemo(() => L.latLngBounds([0, 0], [PLAN_HEIGHT, PLAN_WIDTH]), []);
   const mapPlaces = useMemo(
@@ -117,11 +119,26 @@ export function LpuLeafletMap({ route, selectedPlaceId, onSelectPlace, lang }: L
     L.polyline(pixels.map(toLatLng), { color: '#b51e2b', weight: 7, opacity: 1, dashArray: '17 10', lineCap: 'round', lineJoin: 'round' }).addTo(layer);
   }, [route]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (tileRef.current) { map.removeLayer(tileRef.current); tileRef.current = null; }
+    if (streetMode) {
+      tileRef.current = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { opacity: 0.88, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+      map.setView([31.2545, 75.7046], 16);
+    } else {
+      map.fitBounds(planBounds, { padding: [18, 18] });
+    }
+  }, [streetMode, planBounds]);
+
   return (
     <div className="relative w-full h-full">
       <div ref={mapElRef} className="w-full h-full" />
       <div className="absolute top-3 left-14 z-[500] flex items-center gap-2">
-        <div className="h-9 px-3 rounded-full shadow-md flex items-center gap-1.5 text-xs font-semibold border" style={{ backgroundColor: 'var(--surface)', color: 'var(--text)', borderColor: 'var(--gold)' }}><MapPin size={15} weight="fill" style={{ color: 'var(--accent)' }} /><span>Interactive site plan</span></div>
+        <button type="button" onClick={() => setStreetMode((v) => !v)} className="h-9 px-3 rounded-full shadow-md flex items-center gap-1.5 text-xs font-semibold cursor-pointer border" style={{ backgroundColor: 'var(--surface)', color: 'var(--text)', borderColor: 'var(--border)' }}>
+          {streetMode ? <MapTrifold size={15} weight="bold" /> : <MapPin size={15} weight="fill" />}
+          <span>{streetMode ? 'Campus plan' : 'Street context'}</span>
+        </button>
       </div>
       {route && <div className="absolute bottom-3 left-3 rounded-lg px-3 py-2 shadow-lg text-xs font-semibold border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--accent)' }}><span style={{ color: 'var(--accent)' }}>Dashed red route</span> follows the traced road/walkway spine from the official plan.</div>}
       <div className="absolute bottom-3 right-3 rounded-lg px-3 py-2 shadow-lg text-[10px] font-semibold border" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>LPU site plan · interactive layer</div>
