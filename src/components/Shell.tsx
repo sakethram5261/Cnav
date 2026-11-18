@@ -62,27 +62,28 @@ export function Shell({ children }: { children: React.ReactNode }) {
       className="h-dvh w-full overflow-hidden flex flex-col"
       style={{ backgroundColor: 'var(--bg)', color: 'var(--text)' }}
     >
-      {/* Clean Top App Bar */}
+      {/* LPU campus guide masthead */}
       <header
-        className="shrink-0 z-40 px-4 py-2.5 flex items-center justify-between gap-3 border-b"
+        className="shrink-0 z-40 border-b"
         style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
       >
-        <Link to="/" className="flex items-center gap-2.5 min-h-10">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <Link to="/" className="flex items-center gap-3 min-h-10">
           <span
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-display font-bold text-sm"
-            style={{ backgroundColor: 'var(--accent)' }}
+            className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-display font-bold text-xs leading-none text-center border-2"
+            style={{ backgroundColor: 'var(--accent)', borderColor: 'var(--gold)' }}
           >
-            34
+            LPU
           </span>
           <div className="leading-tight">
-            <span className="block font-display font-bold text-sm tracking-tight">
-              {lang === 'hi' ? 'LPU कैंपस मैप' : 'LPU Campus Nav'}
+            <span className="block font-display font-bold text-[15px] tracking-tight uppercase">
+              {lang === 'hi' ? 'एलपीयू कैंपस गाइड' : 'LPU Campus Guide'}
             </span>
             <span
-              className="block text-[11px]"
+              className="block text-[10px] uppercase tracking-[0.16em]"
               style={{ color: 'var(--text-muted)' }}
             >
-              {lang === 'hi' ? 'सभी ब्लॉक व कमरे' : 'All Blocks & Rooms'}
+              {lang === 'hi' ? 'ब्लॉक · मार्ग · स्थल योजना' : 'Blocks · routes · site plan'}
             </span>
           </div>
         </Link>
@@ -114,6 +115,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {lang === 'en' ? 'हिन्दी' : 'EN'}
           </button>
         </div>
+        </div>
+        <div className="lpu-rule" aria-hidden="true" />
       </header>
 
       {/* Main Content */}
@@ -121,10 +124,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {/* Clean Bottom Tab Bar */}
+      {/* Primary navigation */}
       <nav
         aria-label="Primary"
-        className="shrink-0 z-40 border-t grid grid-cols-5 px-2 py-1.5"
+        className="shrink-0 z-40 border-t grid grid-cols-5 px-2 py-1.5 md:flex md:justify-center md:gap-2 md:px-4"
         style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
       >
         {navItems.map((item) => {
@@ -135,7 +138,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.to}
               to={item.to}
-              className="flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[11px] font-medium transition-colors"
+              className="flex flex-col items-center justify-center gap-0.5 py-1.5 px-3 rounded-lg text-[11px] font-medium transition-colors md:flex-row md:gap-2 md:text-xs"
               style={{
                 color: active ? 'var(--accent)' : 'var(--text-muted)',
                 backgroundColor: active ? 'var(--accent-soft)' : 'transparent',

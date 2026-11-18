@@ -197,7 +197,7 @@ export function NavigatePage() {
         </div>
       )}
 
-      {/* Exact LPU Leaflet Map */}
+      {/* Official LPU plan with written route guidance */}
       <div className="flex-1 min-h-0 relative">
         <LpuLeafletMap
           route={route}

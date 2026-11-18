@@ -117,8 +117,8 @@ export function HomePage() {
   };
 
   return (
-    <div className="max-w-xl w-full mx-auto px-4 pt-5 pb-8 flex flex-col gap-5">
-      {/* Clean Hero Header */}
+    <div className="max-w-6xl w-full mx-auto px-4 pt-6 pb-8 flex flex-col gap-6">
+      {/* Campus guide header */}
       <section className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
           <span
@@ -132,12 +132,12 @@ export function HomePage() {
           </span>
         </div>
         <h1 className="font-display font-bold text-2xl sm:text-3xl tracking-tight">
-          {lang === 'hi' ? 'कैंपस में कहाँ जाना है?' : 'Where on campus?'}
+            {lang === 'hi' ? 'एलपीयू में कहाँ जाना है?' : 'Find your way around LPU'}
         </h1>
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
           {lang === 'hi'
-            ? 'कोई भी ब्लॉक, कमरा (34-405), लैब या गेट खोजें।'
-            : 'Search any block (1–58), room like 34-405, library, or canteen.'}
+            ? 'आधिकारिक साइट प्लान से ब्लॉक, कमरा, लैब या गेट खोजें।'
+            : 'Search a numbered block, room, library, hostel, sports ground, or gate.'}
         </p>
 
         {/* Current Start Location / GPS Prompt */}
@@ -247,6 +247,19 @@ export function HomePage() {
           </ul>
         )}
       </form>
+
+      {/* Official plan anchor */}
+      <section className="lpu-desktop-grid grid gap-5 items-stretch">
+        <Link to="/map" className="group relative overflow-hidden rounded-xl border shadow-sm min-h-[230px]" style={{ borderColor: 'var(--gold)', backgroundColor: 'var(--surface)' }}>
+          <img src="/lpu-site-plan.webp" alt="Official LPU campus site plan" className="absolute inset-0 w-full h-full object-cover object-[left_18%] transition-transform duration-500 group-hover:scale-[1.03]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+          <div className="absolute left-4 right-4 bottom-4 text-white"><span className="inline-flex rounded px-2 py-1 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ backgroundColor: 'var(--accent)' }}>Official site plan</span><h2 className="font-display text-xl font-bold mt-2">The LPU campus, as mapped</h2><p className="text-xs text-white/80 mt-1">Blocks 1–58 · hostels · sports · gates</p></div>
+        </Link>
+        <div className="rounded-xl border p-5 flex flex-col justify-between" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div><p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: 'var(--accent)' }}>Built for campus days</p><h2 className="font-display text-xl font-bold mt-2">From Main Gate to your room.</h2><p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>A practical directory for the long north–south campus spine: academics, hostels, food, events and the places students actually use.</p></div>
+          <Link to="/map" className="mt-5 inline-flex items-center justify-between rounded-lg px-4 py-3 text-sm font-bold text-white" style={{ backgroundColor: 'var(--accent)' }}>Open campus map <ArrowRight size={17} weight="bold" /></Link>
+        </div>
+      </section>
 
       {/* Quick Action Grid */}
       <section className="grid grid-cols-2 gap-3">
